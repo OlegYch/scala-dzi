@@ -6,6 +6,7 @@ import org.specs2.matcher.ContentMatchers
 import org.specs2.mutable.Specification
 
 import java.io.File
+import java.lang.management.ManagementFactory
 import java.time.Instant
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
@@ -29,8 +30,9 @@ object DZIBench extends App {
     tiles <- bools
     downscale <- ints
     crop <- ints
-    write <- ints
-    await <- ints
+    write <- List(0, 1024)
+    await = 1024
+    //    await <- ints
   } yield ParallelConfig(
     cols = cols,
     rows = rows,
@@ -45,11 +47,13 @@ object DZIBench extends App {
   val rootOutput = new File("/tmp/target/dzi")
   val outputFolder = new File(rootOutput, Random.nextInt().toString)
   val warmup = dzi.create(ColorDepth.Greyscale, outputFolder, "createDZI", debug = false).withPar(input, configs.last)
+  val bean = ManagementFactory.getPlatformMXBean(classOf[com.sun.management.OperatingSystemMXBean])
   for {
     size <- sizes
     c <- configs
   } {
     val start = Instant.now()
+    val cpuStart = bean.getProcessCpuTime
     val threads = (0 until size).map { _ =>
       val outputFolder = new File(rootOutput, Random.nextInt().toString)
       outputFolder -> new Thread(() => {
@@ -61,7 +65,19 @@ object DZIBench extends App {
     threads.foreach { case (outputFolder, thread) =>
       thread.join()
     }
-    println(s"${c} for size ${size} took ${Instant.now.getEpochSecond - start.getEpochSecond}")
+    val cpuTotal = (bean.getProcessCpuTime - cpuStart) / 1000 / 1000
+    val totalPerProcess = (cpuTotal.toDouble / size).toInt
+    val configString = List(
+      "cols" -> c.cols,
+      "rows" -> c.rows,
+      "levels" -> c.levels,
+      "tiles" -> c.tiles,
+      "downscale" -> c.downscale,
+      "crop" -> c.crop,
+      "write" -> c.write,
+      "await" -> c.await,
+    ).map { case (k, v) => s"${k}=,${v}," }.mkString
+    println(s"At ${Instant.now} ${configString} for size ,${size}, took ${Instant.now.getEpochSecond - start.getEpochSecond}, cpu total ,$cpuTotal, per process ,$totalPerProcess")
     threads.foreach { case (outputFolder, thread) =>
       try {
         MoreFiles.deleteRecursively(outputFolder.toPath, RecursiveDeleteOption.ALLOW_INSECURE)
