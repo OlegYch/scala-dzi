@@ -1,12 +1,11 @@
-import org.olegych.dzi.{DZI, ParallelConfig}
 import org.olegych.dzi.imageio.ImageReader
 import org.olegych.dzi.models._
+import org.olegych.dzi.{DZI, ParallelConfig}
 import org.specs2.matcher.ContentMatchers
 import org.specs2.mutable.Specification
 
 import java.io.File
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Random
 
 class DZITest extends Specification with ContentMatchers {
   //  val input = FileWithFormat(new File("totenpass-combined.png"))
@@ -14,7 +13,7 @@ class DZITest extends Specification with ContentMatchers {
   val tileSize = 256
   val tileOverlap = 1
   val tileFormat = ImageFormat.PNG
-  val outputFolder = new File("/tmp/target/dzi" + Random.nextInt())
+  val outputFolder = new File("/tmp/target/dzi" /* + scala.util.Random.nextInt()*/)
   "createDZI" in {
     val meta = ImageReader.openFile(input).meta
     val c = ParallelConfig(
@@ -29,7 +28,7 @@ class DZITest extends Specification with ContentMatchers {
     )
     val dzi = DZI(meta.size, tileSize, tileOverlap, tileFormat).create(ColorDepth.Greyscale, outputFolder, "createDZI")
     val _ = dzi.withPar(input, c)
-    ok
+    outputFolder must haveSameFilesContentAs(new File("src/test/resources/dzi"))
   }
   "levels" in {
     val dzi = DZI(SizeInPx(4224, 3168), tileSize, 1, tileFormat)

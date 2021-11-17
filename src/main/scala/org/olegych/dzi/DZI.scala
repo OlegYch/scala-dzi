@@ -27,6 +27,42 @@ case class ParallelConfig(
                            await: Int,
                          )
 
+object ParallelConfig {
+  //not too memory hungry, and close to the fastest for 1-12 parallel jobs
+  val optimal = ParallelConfig(
+    cols = false,
+    rows = false,
+    levels = true,
+    tiles = true,
+    downscale = 1024,
+    crop = 1024,
+    write = 0,
+    await = 1024,
+  )
+  //fastest for single parallel job
+  val fastest = ParallelConfig(
+    cols = true,
+    rows = false,
+    levels = true,
+    tiles = true,
+    downscale = 1024,
+    crop = 1024,
+    write = 1024,
+    await = 1024,
+  )
+  //least cpu intensive
+  val easiest = ParallelConfig(
+    cols = false,
+    rows = false,
+    levels = false,
+    tiles = true,
+    downscale = 10240,
+    crop = 1024,
+    write = 0,
+    await = 1024,
+  )
+}
+
 case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFormat.Value) {
   def filesDir(name: String) = new File(s"${name}_files")
 
@@ -165,7 +201,7 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       }
     }
 
-    def withPar(inputFile: FileWithFormat, config: ParallelConfig)(implicit ec: ExecutionContext) = {
+    def withPar(inputFile: FileWithFormat, config: ParallelConfig = ParallelConfig.optimal)(implicit ec: ExecutionContext) = {
       implicit class MaybeParIterator[A, X](ts: Iterator[A]) {
         @inline def flatMapPar[B](par: Int)(f: A => IterableOnce[B]) = if (par > 0) ts.grouped(par).flatMap(_.par.flatMap(f)) else ts.flatMap(f)
 
