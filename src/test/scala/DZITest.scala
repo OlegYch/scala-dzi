@@ -8,7 +8,7 @@ import java.io.File
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class DZITest extends Specification with ContentMatchers {
-  //  val input = FileWithFormat(new File("totenpass-combined.png"))
+  //  val input = FileWithFormat(new File("/totenpass-combined.png"))
   val input = FileWithFormat(new File("src/test/resources/test.png"))
   val tileSize = 256
   val tileOverlap = 1

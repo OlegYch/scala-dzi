@@ -10,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 object DZIBench extends App {
-  //  val input = FileWithFormat(new File("totenpass-combined.png"))
+  //  val input = FileWithFormat(new File("/totenpass-combined.png"))
   val input = FileWithFormat(new File("src/test/resources/test.png"))
   val tileSize = 256
   val tileOverlap = 1

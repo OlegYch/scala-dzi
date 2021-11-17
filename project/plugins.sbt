@@ -1,3 +1,6 @@
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.3")
 addSbtPlugin("ch.epfl.scala" % "sbt-missinglink" % "0.3.2")
 addSbtPlugin("org.olegych" %% "sbt-cached-ci" % "1.0.4")
+addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.1.2")
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.10")
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")

@@ -1,10 +1,9 @@
 lazy val `scala-dzi` = project.in(file("."))
 
 name := "scala-dzi"
-organization := "io.github.olegych"
-version := "0.1-SNAPSHOT"
 scalaVersion := "2.13.7"
 scalacOptions += "--deprecation"
+scalacOptions += "-target:jvm-1.8"
 
 libraryDependencies += "com.google.guava" % "guava" % "31.0.1-jre"
 libraryDependencies += "com.alexdupre" % "pngj" % "2.1.2.1"
@@ -41,3 +40,55 @@ cachedCiTestFull := {
   val _ = cachedCiTestFull.value
   val __ = (Compile / missinglinkCheck).value
 }
+
+ThisBuild / organization := "io.github.olegych"
+ThisBuild / organizationName := "OlegYch"
+ThisBuild / organizationHomepage := Some(url("https://github.com/OlegYch"))
+
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/OlegYch/scala-dzi"),
+    "scm:git@github.com:OlegYch/scala-dzi.git"
+  )
+)
+ThisBuild / developers := List(
+  Developer(
+    id    = "OlegYch",
+    name  = "Aleh Aleshka",
+    email = "olegych@tut.by",
+    url   = url("https://github.com/OlegYch")
+  )
+)
+
+ThisBuild / description := "Deepzoom image creation library for scala."
+ThisBuild / licenses := Seq("BSD-style" -> url("http://www.opensource.org/licenses/bsd-license.php"))
+ThisBuild / homepage := Some(url("https://github.com/OlegYch/scala-dzi"))
+
+// Remove all additional repository other than Maven Central from POM
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishTo := {
+  val nexus = "https://oss.sonatype.org/"
+  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
+  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+}
+ThisBuild / publishMavenStyle := true
+ThisBuild / publishTo := sonatypePublishToBundle.value
+ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
+ThisBuild / sonatypeProfileName := "OlegYch"
+
+import ReleaseTransformations._
+ThisBuild / releaseCrossBuild := true
+ThisBuild / releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  commitReleaseVersion,
+  tagRelease,
+  releaseStepCommandAndRemaining("+publishSigned"),
+  releaseStepCommand("sonatypeBundleRelease"),
+  setNextVersion,
+  commitNextVersion,
+  pushChanges
+)
