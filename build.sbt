@@ -19,7 +19,6 @@ libraryDependencies ++= Seq(
 Test / javaOptions ++= List("-Xmx10g", "-XX:+UnlockExperimentalVMOptions", "-XX:+EnableJVMCI", "-XX:+UseJVMCICompiler")
 Test / fork := true
 
-crossScalaVersions := Seq(scalaVersion.value)
 ThisBuild / missinglinkExcludedDependencies ++= Seq(
   moduleFilter("org.slf4j"),
   moduleFilter("ch.qos.logback"),
@@ -66,11 +65,6 @@ ThisBuild / homepage := Some(url("https://github.com/OlegYch/scala-dzi"))
 
 // Remove all additional repository other than Maven Central from POM
 ThisBuild / pomIncludeRepository := { _ => false }
-ThisBuild / publishTo := {
-  val nexus = "https://oss.sonatype.org/"
-  if (isSnapshot.value) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
-}
 ThisBuild / publishMavenStyle := true
 ThisBuild / publishTo := sonatypePublishToBundle.value
 ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
@@ -78,7 +72,6 @@ ThisBuild / sonatypeProfileName := "OlegYch"
 
 import ReleaseTransformations._
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / releaseCrossBuild := true
 ThisBuild / releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
@@ -87,7 +80,7 @@ ThisBuild / releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
-  releaseStepCommandAndRemaining("+publishSigned"),
+  releaseStepCommandAndRemaining("publishSigned"),
   releaseStepCommand("sonatypeBundleRelease"),
   setNextVersion,
   commitNextVersion,
