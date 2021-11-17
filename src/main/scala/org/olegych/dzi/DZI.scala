@@ -262,21 +262,23 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       }
 
       val count = new AtomicLong(0)
-      if (debug) {
-        new Thread(() =>
-          while (true) {
+      @transient var done = false
+      val monitor = if (debug) {
+        Some(new Thread(() =>
+          while (!done) {
             Thread.sleep(1000)
             println(count.getAndSet(0).toString)
           }
         ) {
           setDaemon(true)
           start()
-        }
-      }
+        })
+      } else None
       val sinks = new AtomicReference(
         levels.seq.flatMap(_._1.tiles).map(tile => tile.unapply -> tileImage(tile)).toMap
       )
-      downscaling(isource(inputFile))
+
+      def run = downscaling(isource(inputFile))
         .flatMapPar(config.crop) { case (level, pxY, row) => crop(level, pxY, row) }
         .flatMapPar(config.write) { case (tile, pxY, row) =>
           count.incrementAndGet()
@@ -291,7 +293,13 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
         }
         .groupedMaybe(config.await)
         .foreach(r => Await.result(Future.sequence(r), Duration.Inf))
-      descriptorFile
+
+      try {
+        run
+        descriptorFile
+      } finally {
+        done = true
+      }
     }
   }
 }
