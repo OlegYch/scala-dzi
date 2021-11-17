@@ -72,7 +72,7 @@ ThisBuild / sonatypeProfileName := "OlegYch"
 
 import ReleaseTransformations._
 ThisBuild / versionScheme := Some("early-semver")
-ThisBuild / releaseProcess := Seq[ReleaseStep](
+releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
   runClean,
