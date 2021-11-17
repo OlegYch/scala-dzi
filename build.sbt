@@ -1,7 +1,7 @@
 lazy val `scala-dzi` = project.in(file("."))
 
 name := "scala-dzi"
-organization := "org.olegych"
+organization := "io.github.olegych"
 version := "0.1-SNAPSHOT"
 scalaVersion := "2.13.7"
 scalacOptions += "--deprecation"

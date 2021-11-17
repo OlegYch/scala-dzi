@@ -1,8 +1,8 @@
-package org.olegych.dzi
+package io.github.olegych.dzi
 
 import com.google.common.io.{MoreFiles, RecursiveDeleteOption}
-import org.olegych.dzi.imageio.ImageReader
-import org.olegych.dzi.models._
+import io.github.olegych.dzi.imageio.ImageReader
+import io.github.olegych.dzi.models._
 
 import java.awt.Point
 import java.awt.image.{BufferedImage, DataBufferByte, Raster}

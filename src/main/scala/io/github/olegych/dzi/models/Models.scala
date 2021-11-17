@@ -1,4 +1,4 @@
-package org.olegych.dzi.models
+package io.github.olegych.dzi.models
 
 import java.io.File
 

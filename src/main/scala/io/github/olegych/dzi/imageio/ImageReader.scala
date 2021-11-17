@@ -1,9 +1,10 @@
-package org.olegych.dzi.imageio
+package io.github.olegych.dzi.imageio
 
 import java.io.{BufferedInputStream, File, FileInputStream, InputStream}
 import ar.com.hjg.pngj.PngReaderByte
 import com.alexdupre.bmp.BMPReader
-import org.olegych.dzi.models._
+import io.github.olegych.dzi.models.FileWithFormat
+import io.github.olegych.dzi.models._
 
 trait ImageReader extends AutoCloseable {
   def meta: ImageMetadata

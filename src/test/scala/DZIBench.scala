@@ -1,7 +1,7 @@
 import com.google.common.io.{MoreFiles, RecursiveDeleteOption}
-import org.olegych.dzi.imageio.ImageReader
-import org.olegych.dzi.models._
-import org.olegych.dzi.{DZI, ParallelConfig}
+import io.github.olegych.dzi.imageio.ImageReader
+import io.github.olegych.dzi.models._
+import io.github.olegych.dzi.{DZI, ParallelConfig}
 
 import java.io.File
 import java.lang.management.ManagementFactory

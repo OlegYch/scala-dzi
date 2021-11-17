@@ -1,6 +1,6 @@
-import org.olegych.dzi.imageio.ImageReader
-import org.olegych.dzi.models._
-import org.olegych.dzi.{DZI, ParallelConfig}
+import io.github.olegych.dzi.imageio.ImageReader
+import io.github.olegych.dzi.models._
+import io.github.olegych.dzi.{DZI, ParallelConfig}
 import org.specs2.matcher.ContentMatchers
 import org.specs2.mutable.Specification
 
