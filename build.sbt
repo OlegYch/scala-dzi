@@ -77,6 +77,7 @@ ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
 ThisBuild / sonatypeProfileName := "OlegYch"
 
 import ReleaseTransformations._
+ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / releaseCrossBuild := true
 ThisBuild / releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
