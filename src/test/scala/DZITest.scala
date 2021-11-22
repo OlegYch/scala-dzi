@@ -8,29 +8,35 @@ import java.io.File
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class DZITest extends Specification with ContentMatchers {
-  //  val input = FileWithFormat(new File("/totenpass-combined.png"))
-  val input = FileWithFormat(new File("src/test/resources/test.png"))
-  val tileSize = 256
-  val tileOverlap = 1
-  val tileFormat = ImageFormat.PNG
-  val outputFolder = new File("/tmp/target/dzi" /* + scala.util.Random.nextInt()*/)
-  "createDZI" in {
-    val meta = ImageReader.openFile(input).meta
-    val c = ParallelConfig(
-      cols = true,
-      rows = false,
-      levels = true,
-      tiles = true,
-      downscale = 1024,
-      crop = 1024,
-      write = 1024,
-      await = 1024,
-    )
-    val dzi = DZI(meta.size, tileSize, tileOverlap, tileFormat).create(ColorDepth.Greyscale, outputFolder, "createDZI")
-    val _ = dzi.withPar(input, c)
-    outputFolder must haveSameFilesContentAs(new File("src/test/resources/dzi"))
+  val testFiles = new File("src/test/resources").listFiles().filter { file =>
+    file.getName.endsWith(".png")
+  }
+//  val testFiles = Array((new File("src/test/resources/bench/bench.png")))
+  testFiles.map { input =>
+    val tileSize = 256
+    val tileOverlap = 1
+    val tileFormat = ImageFormat.PNG
+    val outputFolder = new File(s"/tmp/target/dzi/${input.getName}" /* + scala.util.Random.nextInt()*/ )
+    s"create DZI from ${input.getName}" in {
+      val meta = ImageReader.openFile(input).meta
+      val c = ParallelConfig(
+        cols = true,
+        rows = false,
+        levels = true,
+        tiles = true,
+        downscale = 1024,
+        crop = 1024,
+        write = 1024,
+        await = 1024,
+      )
+      val dzi = DZI(meta.size, tileSize, tileOverlap, tileFormat).create(FileWithFormat(input), outputFolder, input.getName)
+      val _ = dzi.withPar(c)
+      outputFolder must haveSameFilesAs(new File(s"src/test/resources/dzi/${input.getName}")).copy(filesMatcher = haveSameMD5)
+    }
   }
   "levels" in {
+    val tileSize = 256
+    val tileFormat = ImageFormat.PNG
     val dzi = DZI(SizeInPx(4224, 3168), tileSize, 1, tileFormat)
     dzi.computeLevels.seq ==== Vector(
       dzi.Level(13, SizeInPx(4224, 3168), SizeInCells(17, 13)),

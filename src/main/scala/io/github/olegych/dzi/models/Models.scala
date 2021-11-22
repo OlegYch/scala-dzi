@@ -28,12 +28,7 @@ object PPM {
   def apply(ppm: Int): PPM = PPM(ppm, ppm)
 }
 
-object ColorDepth extends Enumeration {
-  val BlackAndWhite = Value(1)
-  val Greyscale = Value(8)
-}
-
-case class ImageMetadata(size: SizeInPx, ppm: PPM, colorDepth: ColorDepth.Value)
+case class ImageMetadata(size: SizeInPx, ppm: PPM, bitsPerChannel: Int, channels: Int)
 
 case class FileFormat(imageFormat: ImageFormat.Value)
 

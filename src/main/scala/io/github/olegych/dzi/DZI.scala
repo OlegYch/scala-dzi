@@ -4,8 +4,9 @@ import com.google.common.io.{MoreFiles, RecursiveDeleteOption}
 import io.github.olegych.dzi.imageio.ImageReader
 import io.github.olegych.dzi.models._
 
-import java.awt.Point
-import java.awt.image.{BufferedImage, DataBufferByte, Raster}
+import java.awt.{Point, Transparency}
+import java.awt.color.ColorSpace
+import java.awt.image.{BufferedImage, ComponentColorModel, DataBuffer, DataBufferByte, Raster}
 import java.io.File
 import java.nio.file.{Files, StandardOpenOption}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicReference}
@@ -17,15 +18,15 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future, blocking}
 
 case class ParallelConfig(
-                           cols: Boolean,
-                           rows: Boolean,
-                           levels: Boolean,
-                           tiles: Boolean,
-                           downscale: Int,
-                           crop: Int,
-                           write: Int,
-                           await: Int,
-                         )
+    cols: Boolean,
+    rows: Boolean,
+    levels: Boolean,
+    tiles: Boolean,
+    downscale: Int,
+    crop: Int,
+    write: Int,
+    await: Int,
+)
 
 object ParallelConfig {
   //not too memory hungry, and close to the fastest for 1-12 parallel jobs
@@ -137,11 +138,11 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
        |</Image>""".stripMargin
 
   case class create(
-                     outputColorDepth: ColorDepth.Value,
-                     outputDir: File,
-                     outputName: String,
-                     debug: Boolean = true,
-                   ) {
+      inputFile: FileWithFormat,
+      outputDir: File,
+      outputName: String,
+      debug: Boolean = true,
+  ) {
     private def println(s: String) = if (debug) Predef.println(s)
 
     val filesOutputsDir = new File(outputDir, filesDir(outputName).getPath)
@@ -154,8 +155,9 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
     outputDir.mkdirs()
     Files.write(descriptorFile.toPath, descriptor.getBytes("utf-8"), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 
-    private def isource(inputFile: FileWithFormat) = new Iterator[Array[Byte]] {
-      val ir = ImageReader.openFile(inputFile)
+    private lazy val ir = ImageReader.openFile(inputFile)
+    private lazy val meta = ir.meta
+    private def isource = new Iterator[Array[Byte]] {
       var read = 0
 
       def hasNext = if (ir.hasNext) true
@@ -165,7 +167,7 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       }
 
       def next() = {
-        val buf = new Array[Byte](ir.meta.size.pxWidth)
+        val buf = new Array[Byte](meta.size.pxWidth * meta.channels)
         ir.read(buf, 0)
         read += 1
         buf
@@ -176,13 +178,33 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       private val tileFile = new File(outputDir, tile.file(outputName).getPath)
       tileFile.getParentFile.mkdirs()
       private val file = FileWithFormat(tileFile, FileFormat(format))
-      private val meta = ImageMetadata(tile.size, PPM(0), outputColorDepth)
-      private lazy val img = new BufferedImage(
-        meta.size.pxWidth,
-        meta.size.pxHeight,
-        if (meta.colorDepth == ColorDepth.Greyscale) BufferedImage.TYPE_BYTE_GRAY else BufferedImage.TYPE_BYTE_BINARY
-      )
-      private lazy val sm = img.getSampleModel.createCompatibleSampleModel(meta.size.pxWidth, 1)
+      private lazy val img = meta.channels match {
+        case 1 =>
+          new BufferedImage(
+            tile.size.pxWidth,
+            tile.size.pxHeight,
+            if (meta.bitsPerChannel == 8) BufferedImage.TYPE_BYTE_GRAY else BufferedImage.TYPE_BYTE_BINARY
+          )
+        case 3 =>
+          val width = tile.size.pxWidth
+          val height = tile.size.pxHeight
+          val cs = ColorSpace.getInstance(ColorSpace.CS_sRGB)
+          val bOffs = Array(0, 1, 2) //rgb as produced by pngj
+          val nBits = Array.tabulate(bOffs.length)(_ => meta.bitsPerChannel)
+          val colorModel = new ComponentColorModel(cs, nBits, false, false, Transparency.OPAQUE, DataBuffer.TYPE_BYTE)
+          val raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, width, height, width * bOffs.length, bOffs.length, bOffs, null)
+          new BufferedImage(colorModel, raster, false, null)
+        case 4 =>
+          val width = tile.size.pxWidth
+          val height = tile.size.pxHeight
+          val cs = ColorSpace.getInstance(ColorSpace.CS_sRGB)
+          val bOffs = Array(0, 1, 2, 3) //rgba as produced by pngj
+          val nBits = Array.tabulate(bOffs.length)(_ => meta.bitsPerChannel)
+          val colorModel = new ComponentColorModel(cs, nBits, true, false, Transparency.TRANSLUCENT, DataBuffer.TYPE_BYTE)
+          val raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, width, height, width * bOffs.length, bOffs.length, bOffs, null)
+          new BufferedImage(colorModel, raster, false, null)
+      }
+      private lazy val sm = img.getSampleModel.createCompatibleSampleModel(tile.size.pxWidth, 1)
       private val written = new AtomicInteger(0)
 
       def write(row: Array[Byte], idx: Long)(implicit ec: ExecutionContext) = {
@@ -201,7 +223,7 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       }
     }
 
-    def withPar(inputFile: FileWithFormat, config: ParallelConfig = ParallelConfig.optimal)(implicit ec: ExecutionContext) = {
+    def withPar(config: ParallelConfig = ParallelConfig.optimal)(implicit ec: ExecutionContext) = {
       implicit class MaybeParIterator[A, X](ts: Iterator[A]) {
         @inline def flatMapPar[B](par: Int)(f: A => IterableOnce[B]) = if (par > 0) ts.grouped(par).flatMap(_.par.flatMap(f)) else ts.flatMap(f)
 
@@ -215,25 +237,32 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
       }
 
       val levels = computeLevels.map { level =>
-        (level, new Array[Int](level.size.pxWidth), new AtomicInteger())
+        (level, (0 until meta.channels).map(channel => (new Array[Int](level.size.pxWidth), channel)), new AtomicInteger())
       }
-
+      @inline def translateX(x: Int, channel: Int) = x * meta.channels + channel
       def downscaling(source: Iterator[Array[Byte]]) = source.zipWithIndex.groupedMaybe(config.downscale).flatMap { group =>
         levels.flatMapPar(config.levels) { case (level, temp, pxY) =>
           group.flatMap { case (origRow, idx) =>
             if (level.size == origSize) {
               Some((level, idx, origRow))
             } else {
-              def update(level: Level, temp: Array[Int], origRow: Array[Byte], idx: Int) = {
+              def update(level: Level, temp: Seq[(Array[Int], Int)], origRow: Array[Byte], idx: Int) = {
                 def updateTemp(range: ParRange, destPos: Int) =
-                  range.foreachPar(config.rows)(origPos => temp(destPos) += origRow(origPos) & 0xff)
+                  temp.foreach { case (temp, channel) =>
+                    range.foreachPar(config.rows)(origPos => temp(destPos) += origRow(translateX(origPos, channel)) & 0xff)
+                  }
 
                 val rowRange = level.rows(idx)
                 if (idx == rowRange._1) {
-                  val scaledRow = new Array[Byte](level.size.pxWidth)
+                  val scaledRow = new Array[Byte](level.size.pxWidth * meta.channels)
                   level.cols.foreachPar(config.cols) { case (range, destPos) =>
                     updateTemp(range, destPos)
-                    scaledRow(destPos) = Math.round(temp(destPos).toDouble / (range.length * rowRange._2)).toByte
+                    temp.foreach { case (temp, channel) =>
+                      scaledRow(translateX(destPos, channel)) = Math.round(temp(destPos).toDouble / (range.length * rowRange._2)).toByte
+                    }
+                  }
+                  temp.foreach { case (temp, channel) =>
+                    java.util.Arrays.fill(temp, 0)
                   }
                   Some(scaledRow)
                 } else {
@@ -245,7 +274,6 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
               }
 
               update(level, temp, origRow, idx).map { scaledRow =>
-                for (i <- temp.indices) temp(i) = 0
                 (level, pxY.getAndIncrement(), scaledRow)
               }
             }
@@ -257,28 +285,30 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
         val offset = tile.offset
         val size = tile.size
         if (pxY >= offset.pxY && pxY <= offset.pxY + size.pxHeight - 1) {
-          Some((tile, pxY - offset.pxY, row.slice(offset.pxX, offset.pxX + size.pxWidth + 1)))
+          Some((tile, pxY - offset.pxY, row.slice(translateX(offset.pxX, 0), translateX(offset.pxX + size.pxWidth + 1, meta.channels - 1))))
         } else None
       }
 
       val count = new AtomicLong(0)
       @transient var done = false
       val monitor = if (debug) {
-        Some(new Thread(() =>
-          while (!done) {
-            Thread.sleep(1000)
-            println(count.getAndSet(0).toString)
+        Some(
+          new Thread(() =>
+            while (!done) {
+              Thread.sleep(1000)
+              println(count.getAndSet(0).toString)
+            }
+          ) {
+            setDaemon(true)
+            start()
           }
-        ) {
-          setDaemon(true)
-          start()
-        })
+        )
       } else None
       val sinks = new AtomicReference(
         levels.seq.flatMap(_._1.tiles).map(tile => tile.unapply -> tileImage(tile)).toMap
       )
 
-      def run = downscaling(isource(inputFile))
+      def run = downscaling(isource)
         .flatMapPar(config.crop) { case (level, pxY, row) => crop(level, pxY, row) }
         .flatMapPar(config.write) { case (tile, pxY, row) =>
           count.incrementAndGet()
@@ -303,4 +333,3 @@ case class DZI(origSize: SizeInPx, tileSize: Int, overlap: Int, format: ImageFor
     }
   }
 }
-

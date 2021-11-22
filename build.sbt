@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   "org.specs2" %% "specs2-matcher-extra" % "4.13.0" % Test
 )
 
-Test / javaOptions ++= List("-Xmx10g", "-XX:+UnlockExperimentalVMOptions", "-XX:+EnableJVMCI", "-XX:+UseJVMCICompiler")
+Test / javaOptions ++= List("-Xmx2g", "-XX:+UnlockExperimentalVMOptions", "-XX:+EnableJVMCI", "-XX:+UseJVMCICompiler")
 Test / fork := true
 
 ThisBuild / missinglinkExcludedDependencies ++= Seq(

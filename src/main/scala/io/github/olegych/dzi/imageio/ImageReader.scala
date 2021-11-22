@@ -25,10 +25,10 @@ object ImageReader {
       case ImageFormat.BMP =>
         new ImageReader {
           val bmp = new BMPReader(in)
-          require(bmp.info.colorDepth == 1 || bmp.info.colorDepth == 8)
+          require(bmp.info.colorDepth == 1 || bmp.info.colorDepth == 8) //todo
 
-          override def meta =
-            ImageMetadata(SizeInPx(bmp.info.width, bmp.info.height), PPM(bmp.info.horizPPM, bmp.info.vertPPM), ColorDepth(bmp.info.colorDepth))
+          override val meta =
+            ImageMetadata(SizeInPx(bmp.info.width, bmp.info.height), PPM(bmp.info.horizPPM, bmp.info.vertPPM), bmp.info.colorDepth, 1)
 
           override def hasNext: Boolean = bmp.hasNextLine()
 
@@ -40,14 +40,14 @@ object ImageReader {
       case ImageFormat.PNG =>
         new ImageReader {
           val png = new PngReaderByte(in)
-          require((png.imgInfo.greyscale || png.imgInfo.indexed) && (png.imgInfo.bitDepth == 1 || png.imgInfo.bitDepth == 8))
-          png.setMaxTotalBytesRead(5 * 1024 * 1024 * 1024) // raise limit to 5GB
+          png.setMaxTotalBytesRead(5L * 1024 * 1024 * 1024) // raise limit to 5GB
 
-          override def meta =
+          override val meta =
             ImageMetadata(
               SizeInPx(png.imgInfo.cols, png.imgInfo.rows),
               PPM(png.getMetadata.getDpm()(0).toInt, png.getMetadata.getDpm()(1).toInt),
-              ColorDepth(png.imgInfo.bitDepth)
+              png.imgInfo.bitDepth,
+              png.imgInfo.channels,
             )
 
           override def hasNext: Boolean = png.hasMoreRows

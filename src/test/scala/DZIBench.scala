@@ -10,8 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 object DZIBench extends App {
-  //  val input = FileWithFormat(new File("/totenpass-combined.png"))
-  val input = FileWithFormat(new File("src/test/resources/test.png"))
+  val input = FileWithFormat(new File("src/test/resources/bench/bench.png"))
   val tileSize = 256
   val tileOverlap = 1
   val tileFormat = ImageFormat.PNG
@@ -45,7 +44,7 @@ object DZIBench extends App {
   println(configs.size)
   val rootOutput = new File("/tmp/target/dzi")
   val outputFolder = new File(rootOutput, Random.nextInt().toString)
-  val warmup = dzi.create(ColorDepth.Greyscale, outputFolder, "createDZI", debug = false).withPar(input, configs.last)
+  val warmup = dzi.create(input, outputFolder, "createDZI", debug = false).withPar(configs.last)
   val bean = ManagementFactory.getPlatformMXBean(classOf[com.sun.management.OperatingSystemMXBean])
   for {
     size <- sizes
@@ -68,7 +67,7 @@ object DZIBench extends App {
       val outputFolder = new File(rootOutput, Random.nextInt().toString)
       outputFolder -> new Thread(() => {
         try {
-          dzi.create(ColorDepth.Greyscale, outputFolder, "createDZI", debug = false).withPar(input, c)
+          dzi.create(input, outputFolder, "createDZI", debug = false).withPar(c)
         } catch {
           case e: Throwable =>
             println(s"${configString} failed with ${e.getMessage}")
@@ -80,7 +79,8 @@ object DZIBench extends App {
     }
     threads.foreach { case (outputFolder, thread) =>
       try {
-        if (!failed) thread.join() else {
+        if (!failed) thread.join()
+        else {
           thread.interrupt()
           thread.join()
         }
@@ -92,7 +92,9 @@ object DZIBench extends App {
     val cpuTotal = (bean.getProcessCpuTime - cpuStart) / 1000 / 1000
     val totalPerProcess = (cpuTotal.toDouble / size).toInt
     if (!failed) {
-      println(s"At ${Instant.now} ${configString} for size ,${size}, took ,${Instant.now.getEpochSecond - start.getEpochSecond}, cpu total ,$cpuTotal, per process ,$totalPerProcess")
+      println(
+        s"At ${Instant.now} ${configString} for size ,${size}, took ,${Instant.now.getEpochSecond - start.getEpochSecond}, cpu total ,$cpuTotal, per process ,$totalPerProcess"
+      )
     }
     threads.foreach { case (outputFolder, thread) =>
       try {
